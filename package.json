@@ -1,0 +1,46 @@
+{
+  "name": "nightlife_app",
+  "version": "1.0.0",
+  "description": "Nightlife check-in app in fulfillment of learning project for FreeCodeCamp",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "watch": "webpack -d --watch",
+    "build": "webpack",
+    "serve": "node index.js",
+    "heroku-postbuild": "webpack --display-error-details"
+  },
+  "author": "Will G",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^2.5.0",
+    "babel-core": "^6.24.1",
+    "babel-loader": "^7.0.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-react": "^6.24.1",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.17.2",
+    "css-loader": "^0.28.2",
+    "express": "^4.15.3",
+    "extract-text-webpack-plugin": "^2.1.0",
+    "file-loader": "^0.11.1",
+    "history": "^4.6.3",
+    "jsonwebtoken": "^7.4.1",
+    "mongodb": "^2.2.29",
+    "mongoose": "^4.11.0",
+    "passport": "^0.3.2",
+    "passport-local": "^1.0.0",
+    "prop-types": "^15.5.10",
+    "react": "^15.5.4",
+    "react-bootstrap": "^0.31.0",
+    "react-dom": "^15.5.4",
+    "react-router": "^4.1.1",
+    "react-router-dom": "^4.1.1",
+    "style-loader": "^0.18.1",
+    "validator": "^8.0.0",
+    "webpack": "^2.6.0"
+  },
+  "devDependencies": {
+    "webpack-dev-server": "^2.4.5"
+  }
+}
