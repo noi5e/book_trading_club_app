@@ -1,7 +1,7 @@
 {
-  "name": "nightlife_app",
+  "name": "book_trading_club_app",
   "version": "1.0.0",
-  "description": "Nightlife check-in app in fulfillment of learning project for FreeCodeCamp",
+  "description": "Book trading club app in fulfillment of learning project for FreeCodeCamp",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

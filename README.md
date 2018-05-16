@@ -1,10 +1,10 @@
-<p>Nightlife check-in app in fulfillment of learning project for FreeCodeCamp: https://www.freecodecamp.org/challenges/build-a-nightlife-coordination-app. Uses the Yelp Fusion API.</p>
+<p>Book trading club app in fulfillment of learning project for FreeCodeCamp: https://www.freecodecamp.org/challenges/manage-a-book-trading-club.</p>
 
 <ul>
-<li>User Story: As an unauthenticated user, I can view all bars in my area.</li>
-<li>User Story: As an authenticated user, I can add myself to a bar to indicate I am going there tonight.</li>
-<li>User Story: As an authenticated user, I can remove myself from a bar if I no longer want to go there.</li>
-<li>User Story: As an unauthenticated user, when I login I should not have to search again.</li>
+<li>User Story: I can view all books posted by every user.</li>
+<li>User Story: I can add a new book.</li>
+<li>User Story: I can update my settings to store my full name, city, and state.</li>
+<li>User Story: I can propose a trade and wait for the other user to accept the trade.</li>
 </ul>
 
-<p>Sample deployment here: https://thawing-mountain-66395.herokuapp.com/</p>
+<p>Sample deployment here: https://aqueous-coast-81323.herokuapp.com/</p>
