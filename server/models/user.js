@@ -2,7 +2,10 @@ var mongoose = require('mongoose');
 var bcrypt = require('bcryptjs');
 
 var UserSchema = mongoose.Schema({
-	name: {
+	firstName: {
+		type: String
+	},
+	lastName: {
 		type: String
 	},
 	username: {
@@ -13,17 +16,29 @@ var UserSchema = mongoose.Schema({
 		type: String,
 		unique: true
 	},
+	street: {
+		type: String
+	},
+	city: {
+		type: String
+	},
+	state: {
+		type: String
+	},
+	zipCode: {
+		type: String
+	},
 	password: {
 		type: String
-	}
+	},
+	books: [],
+	acceptedTradeRequests: []
 });
 
 UserSchema.pre('save', function saveHook(next) {
 	const user = this;
 
-	console.log("This is being triggered!");
-
-	// if (!user.isModified('password')) return next();
+	if (!user.isModified('password')) return next();
 
 	return bcrypt.genSalt((saltError, salt) => {
 		if (saltError) { return next(saltError); }
@@ -32,8 +47,6 @@ UserSchema.pre('save', function saveHook(next) {
 			if (hashError) { return next(hashError); }
 
 			user.password = hash;
-
-			console.log(user.password);
 
 			return next();
 		});
@@ -45,28 +58,3 @@ var User = module.exports = mongoose.model('User', UserSchema);
 module.exports.comparePassword = function comparePassword(candidatePassword, hash, callback) {
 	bcrypt.compare(candidatePassword, hash, callback);
 };
-
-// module.exports.createUser = function(newUser, callback) {
-// 	bcrypt.genSalt(10, function(error, salt) {
-// 		bcrypt.hash(newUser.password, salt, function(error, hash) {
-// 			newUser.password = hash;
-// 			newUser.save(callback);
-// 		});
-// 	});
-// }
-
-// module.exports.getUserByUsername = function(username, callback) {
-// 	var query = {username: username};
-// 	User.findOne(query, callback);
-// }
-
-// module.exports.getUserById = function(id, callback) {
-// 	User.findById(id, callback);
-// }
-
-// module.exports.comparePassword = function(candidatePassword, hash, callback) {
-// 	bcrypt.compare(candidatePassword, hash, function(error, isMatch) {
-// 		if (error) throw error;
-// 		callback(null, isMatch); 
-// 	});
-// }

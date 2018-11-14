@@ -8,3 +8,5 @@
 </ul>
 
 <p>Sample deployment here: https://aqueous-coast-81323.herokuapp.com/</p>
+
+<!-- helper functions for MyBooksContainer, api.js, XHR requests -->

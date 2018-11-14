@@ -14,9 +14,14 @@ class RegisterFormContainer extends React.Component {
 		this.state = {
 			errors: {},
 			user: {
-				name: '',
+				firstName: '',
+				lastName: '',
 				username: '',
 				email: '',
+				street: '',
+				city: '',
+				state: '',
+				zipCode: '',
 				password: '',
 				passwordTwo: ''
 			},
@@ -41,12 +46,17 @@ class RegisterFormContainer extends React.Component {
 	handleSubmit(event) {
 		event.preventDefault();
 
-		const name = encodeURIComponent(this.state.user.name);
+		const firstName = encodeURIComponent(this.state.user.firstName);
+		const lastName = encodeURIComponent(this.state.user.lastName);
 		const username = encodeURIComponent(this.state.user.username);
 		const email = encodeURIComponent(this.state.user.email);
+		const street = encodeURIComponent(this.state.user.street);
+		const city = encodeURIComponent(this.state.user.city);
+		const state = encodeURIComponent(this.state.user.state);
+		const zipCode = encodeURIComponent(this.state.user.zipCode);
 		const password = encodeURIComponent(this.state.user.password);
 		const passwordTwo = encodeURIComponent(this.state.user.passwordTwo);
-		const formData = `name=${name}&username=${username}&email=${email}&password=${password}&passwordTwo=${passwordTwo}`;
+		const formData = `firstName=${firstName}&lastName=${lastName}&username=${username}&email=${email}&street=${street}&city=${city}&state=${state}&zipCode=${zipCode}&password=${password}&passwordTwo=${passwordTwo}`;
 
 		const xhr = new XMLHttpRequest();
 		xhr.open('post', '/auth/register');
@@ -88,7 +98,10 @@ class RegisterFormContainer extends React.Component {
 		}
 
 		return (
-			<RegisterForm onSubmit={(e) => this.handleSubmit(e)} onChange={(e) => this.handleChange(e)} errors={this.state.errors} user={this.state.user} />
+			<div className='col-lg-12'>
+				<h2 className='page-header'>Register</h2>
+				<RegisterForm onSubmit={(e) => this.handleSubmit(e)} onChange={(e) => this.handleChange(e)} errors={this.state.errors} user={this.state.user} />
+			</div>
 		);
 	}
 }

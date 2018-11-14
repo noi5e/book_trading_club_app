@@ -1,3 +1,4 @@
+require('dotenv').config();
 var express = require('express');
 var app = express();
 
@@ -7,8 +8,8 @@ var passport = require('passport');
 
 var mongo = require('mongodb').MongoClient;
 var mongoose = require('mongoose');
-// mongoose.connect('mongodb://localhost:27017/database');
-mongoose.connect(process.env.MONGODB_URI);
+const mongoUrl = process.env.MONGODB_URI;
+mongoose.connect(mongoUrl);
 
 // look for static files
 // app.use(express.static(path.join(__dirname, 'public')));
@@ -40,13 +41,6 @@ app.get('*', function(request, response, next) {
 	console.log('Request: [GET]', request.originalUrl);
 	response.redirect('/');
 });
-
-// app.set('port', 3000);
-
-// var server = app.listen(app.get('port'), function() {
-// 	var port = server.address().port;
-// 	console.log('Now listening at port ' + port);
-// });
 
 app.listen(process.env.PORT || 8080, function () {
   console.log('Example app listening on port 8080!');

@@ -1,240 +1,324 @@
 const express = require('express');
+var validator = require('validator');
 var router = new express.Router();
-const https = require('https');
-var querystring = require('querystring');
 const async = require('async');
-var Token = require('../models/token');
+var Book = require('../models/book');
 var User = require('../models/user');
-var Business = require('../models/business');
 const jwt = require('jsonwebtoken')
 
-const clientId = encodeURIComponent(process.env.YELP_CLIENT_ID);
-const clientSecret = encodeURIComponent(process.env.YELP_CLIENT_SECRET);
+router.post('/get_all_books', function(request, response, next) {
 
-function getYelpNightclubData(token, location, userMongoId, httpResponseCallback) {
+	const jsonWebToken = request.headers.authorization.split(" ")[1];
 
-	const queryString = '?categories=nightlife&location=' + encodeURIComponent(location);
+	if (jsonWebToken !== 'null') {
 
-	const options = {
-		hostname: 'api.yelp.com',
-		path: '/v3/businesses/search' + queryString,
-		method: 'GET',
-		headers: {
-			Authorization: 'Bearer ' + token
-		}
-	};
+		jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
 
-	return https.get(options, (response) => {
-		let data = '';
+			if (error) { console.log('error decoding JWT: ' + error); }
 
-		response.on('data', (chunk) => {
-			data += chunk;
-		});
+			User.findOne({ _id: decodedToken.sub }, (error, user) => {
+				if (error) { console.log('error finding user for all books request: ' + error); }
+				
+				Book.find({}, (error, allBooks) => {
+					if (error) { console.log('error generating list of all books: ' + error); }
 
-		response.on('end', () => {
-			parsedData = JSON.parse(data);
+					const booksForJson = allBooks.map((book) => {
 
-			// check if data is a yelp API lookup error. if so, immediately send it back to client.
-			if (parsedData.hasOwnProperty('error')) {
-				return httpResponseCallback(parsedData);
-			}
+						const userIdString = user._id.toString();
 
-			// if not an error, parse JSON data down to the essentials.
-			let yelpBusinessData = parsedData.businesses.map((item) => {
-				return {
-					id: item.id,
-					name: item.name,
-					image_url: item.image_url,
-					url: item.url,
-					review_count: item.review_count,
-					rating: item.rating,
-					city: item.location.city,
-					checkins: null,
-					userIsCheckedIn: false
-				};
-			});
+						let usersOwnBook = (userIdString === book.userId) ? true : false;
+						let userAlreadyRequested = false;
 
-			// async call to the database to determine how many users have checked into each location.
-			async.each(yelpBusinessData, (item, callback) => {
-
-				Business.findOne({ city: item.city, yelp_id: item.id }, 'yelp_id checkin_list', (error, business) => {
-					if (error) { callback('error finding business in mongo.') }
-
-					// if the business doesn't exist in the database, create a new entry for it.
-					if (!business) {
-						Business.createBusiness(new Business({ yelp_id: item.id, city: item.city, checkin_list: [] }), (error, newBusiness) => {
-							if (error) { console.log(error) }
-
-							for (var i = 0; i < yelpBusinessData.length; i++) {
-								if (yelpBusinessData[i].id === newBusiness.yelp_id) {
-									yelpBusinessData[i].checkins = 0;
-								}
-							}
-
-							callback();
-						});
-
-					// if the business does exist, then get the number of checkins from the database and add it to the data.
-					} else {
-						for (var i = 0; i < yelpBusinessData.length; i++) {
-							if (yelpBusinessData[i].id === business.yelp_id) {
-
-								yelpBusinessData[i].checkins = business.checkin_list.length;
-
-								// iterate through the checkin list to check if the user's mongoID is on that list.
-								if (userMongoId) {
-									for (var j = 0; j < business.checkin_list.length; j++) {
-										if (business.checkin_list[j] === userMongoId) {
-											yelpBusinessData[i].userIsCheckedIn = true;
-										} 
-									}
-								}
+						for (let i = 0; book.tradeRequests.length > 0 && i < book.tradeRequests.length; i++) {
+							if (book.tradeRequests[i] === userIdString) {
+								userAlreadyRequested = true;
+								break;
 							}
 						}
 
-						callback();
-					}
-				});
-			}, (error) => {
-				if (error) { console.log(error) }
-
-				return httpResponseCallback(yelpBusinessData);
-			});
-		});
-	}).on('error', (error) => {
-		console.log('error: ' + error);
-		return error;
-	});
-}
-
-function getYelpApiToken(searchTerm, userMongoId, response) {
-
-	// yelp authentication tokens expire on january 13, 2038. if it's before then, use the cached token stored in the app's mongodb to call the yelp API.
-	if (Date.now() < 2150092800000) {
-		Token.findOne({ name: 'token' }).then((document) => {
-
-			getYelpNightclubData(document.token, searchTerm, userMongoId, (data) => {
-				return response.json(data);
-			});
-		});
-	} else {
-	// if it's after january 13, 2038, the yelp authentication token is expired. call the yelp API to get a new auth token and store it in mongodb.
-
-		const options = {
-			method: 'POST',
-			hostname: 'api.yelp.com',
-			path: '/oauth2/token',
-			port: null,
-			headers: {
-				'content-type': 'application/x-www-form-urlencoded'
-			}
-		}
-
-		const newTokenRequest = https.request(options, (tokenResponse) => {
-			let chunks = [];
-
-			tokenResponse.on('data', (chunk) => {
-				chunks.push(chunk);
-			})
-
-			tokenResponse.on('end', () => {
-				const body = Buffer.concat(chunks);
-
-				Token.findOne({ name: 'token' }, (error, document) => {
-					document.token = JSON.parse(body.toString()).access_token;
-					document.save();
-
-					getYelpNightclubData(JSON.parse(body.toString()).access_token, userMongoId, request.body.searchTerm, (data) => {
-						return response.json(data);
+						return {
+							_id: book._id,
+							title: book.title,
+							author: book.author,
+							userAlreadyRequested: userAlreadyRequested,
+							usersOwnBook: usersOwnBook,
+						}
 					});
+
+					response.status(200).json(booksForJson);
+				});
+
+			});
+		});	
+
+	} else {
+
+		Book.find({}, (error, allBooks) => {
+			if (error) { console.log('error generating list of all books: ' + error); }
+
+			response.status(200).json(allBooks);
+		});
+
+	}
+ });
+
+router.post('/mark_received_book', function(request, response, next) {
+	const jsonWebToken = request.headers.authorization.split(" ")[1];
+
+	jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
+
+		if (error) { console.log('error decoding JWT: ' + error); }
+
+		User.findOne({ _id: decodedToken.sub }, (error, userWhoReceivedBook) => {
+			if (error) { console.log('error finding sending user in mark received book request: ' + error); }
+
+			userWhoReceivedBook.acceptedTradeRequests = userWhoReceivedBook.acceptedTradeRequests.filter((tradeRequest) => {
+				return tradeRequest.bookCollectionId !== request.body.bookId;
+			});
+			userWhoReceivedBook.markModified('books');
+			userWhoReceivedBook.save();
+
+			Book.remove({ _id: request.body.bookId }, (error) => {
+				if (error) { console.log('error removing book: ' + error); }
+			});
+
+			User.findOne({ _id: request.body.userId }, (error, userWhoSentBook) => {
+				if (error) { console.log('error finding receiving user in mark received book request: ' + error); }
+
+				userWhoSentBook.books = userWhoSentBook.books.filter((book) => {
+					return book.bookCollectionId !== request.body.bookId;
+				});
+				userWhoSentBook.markModified('acceptedTradeRequests')
+				userWhoSentBook.save();
+
+				response.status(200).json({ 
+					acceptedTradeRequests: userWhoReceivedBook.acceptedTradeRequests,
+					message: 'Sent ' + userWhoSentBook.username + ' a notice that you received their book!'
 				});
 			});
 		});
-
-		newTokenRequest.write(querystring.stringify({
-			grant_type: 'client_credentials',
-			client_id: clientId,
-			client_secret: clientSecret
-		}));
-
-		newTokenRequest.end();
-
-	}
-}
-
-// router.post('/', function(request, response, next) {
-// 	console.log("yay!");
-// });
-
-router.post('/', function(request, response, next) {
-
-	const authorizationHeader = request.headers.authorization;
-
-	if (authorizationHeader) {
-		const jsonWebToken = authorizationHeader.split(" ")[1];
-
-		if (jsonWebToken !== 'null') {
-			jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
-				if (error) { console.log(error) }
-
-				getYelpApiToken(request.body.searchTerm, decodedToken.sub, response);	
-			});
-		} else {
-			getYelpApiToken(request.body.searchTerm, null, response);
-		}
-	} else {
-		getYelpApiToken(request.body.searchTerm, null, response);
-	}
+	});
 });
 
-router.post('/checkin_checkout', function(request, response, next) {
+router.post('/accept_trade_request', function(request, response, next) {
+	const jsonWebToken = request.headers.authorization.split(" ")[1];
 
-	const authorizationHeader = request.headers.authorization;
+	jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
 
-	if (typeof authorizationHeader !== 'undefined') {
-		const jsonWebToken = authorizationHeader.split(" ")[1];
+		if (error) { console.log('error decoding JWT: ' + error); }
 
-		if (jsonWebToken !== 'null') {
-			jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
-				if (error) { console.log(error) }
+		User.findOne({ _id: decodedToken.sub }, (error, userReceivingRequest) => {
+			if (error) { console.log('error finding user for accept trade request: ' + error); }
 
-				let userIsCheckedIn = undefined;
+			for (let i = 0; i < userReceivingRequest.books.length; i++) {
 
-				Business.findOne({ yelp_id: request.body.businessId }, 'checkin_list', (error, business) => {
+				if (userReceivingRequest.books[i].bookCollectionId === request.body.bookId) {
 
-					if (business.checkin_list.indexOf(decodedToken.sub) < 0) {
+					for (let j = 0; j < userReceivingRequest.books[i].tradeRequests.length; j++) {
+						if (userReceivingRequest.books[i].tradeRequests[j].userId = request.body.userId) {
 
-						business.checkin_list = business.checkin_list.concat([decodedToken.sub]);
-						business.save((error, updatedBusiness) => {
-							if (error) { console.log(error) }
-						});
+							userReceivingRequest.books[i].reservedFor = userReceivingRequest.books[i].tradeRequests[j];
 
-						userIsCheckedIn = true;
-					} else {
-						for (var i = 0; i < business.checkin_list.length; i++) {
-							if (business.checkin_list[i] === decodedToken.sub) {
-								business.checkin_list.splice(i, 1);
+							userReceivingRequest.markModified('books');
 
-								business.save((error, updatedBusiness) => {
-									if (error) { console.log(error) }
+							userReceivingRequest.save((error) => {
+								if (error) { console.log('error saving user books for trade request: ' + error); }
+							});
+
+							User.findOne({ _id: userReceivingRequest.books[i].tradeRequests[j].userId }, (error, userMakingRequest) => {
+								if (error) { console.log('error finding user making request in accept trade request: ' + error); }
+
+								userMakingRequest.acceptedTradeRequests = userMakingRequest.acceptedTradeRequests.concat([{
+									username: userReceivingRequest.username,
+									userId: userReceivingRequest._id.toString(),
+									title: userReceivingRequest.books[i].title,
+									author: userReceivingRequest.books[i].author,
+									city: userReceivingRequest.city,
+									state: userReceivingRequest.state,
+									bookCollectionId: userReceivingRequest.books[i].bookCollectionId
+								}]);
+
+								userMakingRequest.markModified('acceptedTradeRequests');
+								userMakingRequest.save();
+
+								response.status(200).json({
+									message: 'Sent ' + userMakingRequest.username + ' a notice that you accepted their request for ' + userReceivingRequest.books[i].title + '.',
+									receivingUser: userReceivingRequest.books[i].tradeRequests[j]
 								});
+							});
 
-								userIsCheckedIn = false;
-							}
+
+							break;
 						}
 					}
 
-					return response.json({ id: request.body.businessId, checkins: business.checkin_list.length, userIsCheckedIn: userIsCheckedIn });
+					break;
+				}
+			}
+
+		});
+	});
+});
+
+router.post('/make_book_request', function(request, response, next) {
+	const jsonWebToken = request.headers.authorization.split(" ")[1];
+
+	jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
+
+		if (error) { console.log('error decoding JWT: ' + error); }
+
+		Book.findOne({ _id: request.body.bookId }, (error, book) => {
+
+			if (error) { console.log('error finding book for trade book request: ' + error); }
+
+			book.tradeRequests = book.tradeRequests.concat([decodedToken.sub]);
+
+			book.save((error) => {
+				if (error) { console.log('error saving book for trade request: ' + error); }
+			});
+
+			User.findOne({ _id: decodedToken.sub }, (error, userMakingRequest) => {
+
+				User.findOne({ _id: book.userId }, (error, userReceivingRequest) => {
+					if (error) { console.log('error finding user for trade book request: ' + error); }
+
+					for (let i = 0; i < userReceivingRequest.books.length; i++) {
+						if (userReceivingRequest.books[i].bookCollectionId === request.body.bookId.toString()) {
+							userReceivingRequest.books[i].tradeRequests = userReceivingRequest.books[i].tradeRequests.concat([{
+								firstName: userMakingRequest.firstName,
+								lastName: userMakingRequest.lastName, 
+								username: userMakingRequest.username, 
+								userId: decodedToken.sub, 
+								street: userMakingRequest.street,
+								city: userMakingRequest.city, 
+								state: userMakingRequest.state,
+								zipCode: userMakingRequest.zipCode
+							}]);
+
+							userReceivingRequest.markModified('books');
+
+							userReceivingRequest.save((error) => {
+								if (error) { console.log('error saving user books for trade request: ' + error); }
+							})
+						}
+					}
+
+					response.status(200).json({ 
+						success: true,
+						message: 'Sent ' + userReceivingRequest.username + ' a request for their book!'
+					});
 				});
+
+
+			});
+
+		});
+
+	});
+});
+
+function validateBookForm(formData) {
+	const errors = {};
+	let isFormValid = true;
+	let message = '';
+
+	if (!formData || typeof formData.title !== 'string' || formData.title.trim().length === 0) {
+		isFormValid = false;
+		errors.title = 'Please provide a title for this book.';
+	}
+
+	if (!formData || typeof formData.author !== 'string' || formData.author.trim().length === 0) {
+		isFormValid = false;
+		errors.author = 'Please provide an author for this book.';
+	}
+
+	if (!isFormValid) {
+		message = 'Check the form for errors.';
+	}
+
+	return {
+		success: isFormValid,
+		message,
+		errors
+	}
+}
+
+router.post('/add_new_book', function(request, response, next) {
+	const jsonWebToken = request.headers.authorization.split(" ")[1];
+
+	jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
+
+		const validationResult = validateBookForm(request.body);
+
+		if (!validationResult.success) {
+			return response.status(400).json({
+				success: false,
+				message: validationResult.message,
+				errors: validationResult.errors
 			});
 		}
-	} else {
-		return response.status(400).json({
-			success: false,
-			message: "Request didn't include user login token.",
-			errors: {}
+
+		if (error) { console.log('error decoding JWT: ' + error); }
+
+		User.findOne({ _id: decodedToken.sub }, (error, user) => {
+			if (error) { 
+				console.log('couldn\'t find user token in mongo, for add new book request: ' + error); 
+			} else {
+				const newBookData = {
+					title: request.body.title,
+					author: request.body.author,
+					tradeRequests: [],
+					userId: user._id
+				};
+
+				const newBook = new Book(newBookData);
+
+				newBook.save((error, book) => {
+					if (error) { console.log('error saving new book: ' + error); }
+
+					user.books = user.books.concat([{
+						title: request.body.title,
+						author: request.body.author,
+						tradeRequests: [],
+						reservedFor: undefined,
+						bookCollectionId: book._id.toString()
+					}]);
+
+					user.save((error, updatedUser) => {
+						if (error) { console.log('error saving booklist for user: ' + error); }
+
+						response.status(200).json({
+							books: user.books,
+							message: 'Added ' + request.body.title + ' by ' + request.body.author + ' to your list of books.'
+						});
+					});
+				});
+			}
 		});
-	}
+
+	});
+});
+
+router.post('/get_user_books', function(request, response, next) {
+
+	const jsonWebToken = request.headers.authorization.split(" ")[1];
+
+	jwt.verify(jsonWebToken, process.env.JWT_KEY, (error, decodedToken) => {
+
+		if (error) { console.log('error decoding JWT: ' + error); }
+
+		User.findOne({ _id: decodedToken.sub }, (error, user) => {
+			if (error) { 
+				console.log('couldn\'t find user token in mongo, for get user books request: ' + error); 
+			} else {
+				response.status(200).json({
+					books: user.books,
+					acceptedTradeRequests: user.acceptedTradeRequests
+				});
+			}
+		});
+
+	});
 
 });
 

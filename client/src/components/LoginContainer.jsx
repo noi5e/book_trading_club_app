@@ -3,7 +3,6 @@ import LoginForm from './LoginForm.jsx';
 import Auth from '../../modules/Auth.js';
 import { Redirect } from 'react-router-dom';
 
-
 class LoginFormContainer extends React.Component {
 	
 	constructor(props) {
@@ -57,6 +56,8 @@ class LoginFormContainer extends React.Component {
 			if (xhr.status === 200) {
 				Auth.authenticateUser(xhr.response.token);
 
+				console.log(xhr.response);
+
 				this.setState({
 					errors: {},
 					redirectToHome: true
@@ -73,14 +74,17 @@ class LoginFormContainer extends React.Component {
 	}
 
 	render() {
-		if (this.state.redirectToHome) {
+		if (this.state.redirectToHome || Auth.isUserAuthenticated()) {
 			return (
 				<Redirect push to='/' />
 			);
 		}
 
 		return (
-			<LoginForm onSubmit={(e) => this.handleSubmit(e)}  onChange={(e) => this.handleChange(e)} errors={this.state.errors} user={this.state.user} successMessage={this.state.successMessage} />
+			<div className='col-lg-12'>
+				<h2 className='page-header'>Login</h2>
+				<LoginForm onSubmit={(e) => this.handleSubmit(e)}  onChange={(e) => this.handleChange(e)} errors={this.state.errors} user={this.state.user} successMessage={this.state.successMessage} />
+			</div>
 		);
 	}
 }

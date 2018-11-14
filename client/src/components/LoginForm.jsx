@@ -1,8 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Alert, FormGroup, ControlLabel, FormControl, HelpBlock, Button } from 'react-bootstrap';
-import bootstrap from '../../../server/static/css/bootstrap.css'
-import style from '../../../server/static/css/style.css'
 
 class LoginForm extends React.Component {
 	render() {
@@ -19,11 +17,11 @@ class LoginForm extends React.Component {
 		}
 
 		if (this.props.errors.username) {
-			usernameError = <HelpBlock className={style['help-block-text']}>{this.props.errors.username}</HelpBlock>;
+			usernameError = <HelpBlock className='help-block-text'>{this.props.errors.username}</HelpBlock>;
 		}
 
 		if (this.props.errors.password) {
-			passwordError = <HelpBlock className={style['help-block-text']}>{this.props.errors.password}</HelpBlock>;
+			passwordError = <HelpBlock className='help-block-text'>{this.props.errors.password}</HelpBlock>;
 		}
 
 		return (
